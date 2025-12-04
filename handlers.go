@@ -34,6 +34,99 @@ func GetMovie(c *gin.Context) {
 	c.JSON(http.StatusOK, movie)
 }
 
+// CreateMovie creates a new movie
+func CreateMovie(c *gin.Context) {
+	var movie Movie
+
+	if err := c.ShouldBindJSON(&movie); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	// Validate required fields
+	if movie.Title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Title is required",
+		})
+		return
+	}
+
+	if movie.AvailableSeats < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Available seats must be non-negative",
+		})
+		return
+	}
+
+	if err := DB.Create(&movie).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to create movie",
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, movie)
+}
+
+// UpdateMovie updates an existing movie
+func UpdateMovie(c *gin.Context) {
+	id := c.Param("id")
+
+	var movie Movie
+	if err := DB.First(&movie, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Movie not found",
+		})
+		return
+	}
+
+	var updateData struct {
+		Title          *string `json:"title"`
+		AvailableSeats *int    `json:"available_seats"`
+	}
+
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	if updateData.Title != nil {
+		movie.Title = *updateData.Title
+	}
+	if updateData.AvailableSeats != nil {
+		movie.AvailableSeats = *updateData.AvailableSeats
+	}
+
+	if err := DB.Save(&movie).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to update movie",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, movie)
+}
+
+// DeleteMovie deletes a movie
+func DeleteMovie(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := DB.Delete(&Movie{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to delete movie",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Movie deleted successfully",
+	})
+}
+
 // DecreaseSeats decreases available seats for a movie
 func DecreaseSeats(c *gin.Context) {
 	id := c.Param("id")
